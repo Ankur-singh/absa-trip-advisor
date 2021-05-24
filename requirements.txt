@@ -1,3 +1,4 @@
 streamlit
 colab-everything
 NRClex
+spacy-streamlit
