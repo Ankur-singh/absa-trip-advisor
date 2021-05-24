@@ -1,8 +1,5 @@
 import re
 import nltk
-nltk.download("stopwords") 
-nltk.download('punkt')
-nltk.download('wordnet')
 from nltk import word_tokenize,sent_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -13,13 +10,19 @@ import numpy as np
 from pathlib import Path
 from collections import Counter
 from nrclex import NRCLex
+from textblob import TextBlob
 
-stop_words = set(stopwords.words('english'))
-lemmatizer = WordNetLemmatizer()
+import spacy_streamlit
+import spacy
+
 st.set_page_config(page_title="Review Analysis",
                     page_icon="👩‍💻",
                     layout="wide",
-                    initial_sidebar_state="expanded",)
+                    initial_sidebar_state="expanded")
+
+nlp = spacy.load('en_core_web_sm')
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
 
 def process_review(review):
     # if expression in the sentence is not a word then this code change them to space
@@ -60,7 +63,35 @@ tab = st.sidebar.selectbox('Select Task',
 
 if tab == 'Review Analysis':
     st.markdown('## Review analysis')
+    review = st.text_input('Please type your review')
+    
 
+    if review:        
+        # st.markdown('## Name Entity Recognition (NER)')
+        docx = nlp(review)
+        spacy_streamlit.visualize_ner(docx,
+                                    show_table=False,
+                                    labels=nlp.get_pipe('ner').labels)
+
+        col1, _, col2, _, col3 = st.beta_columns([8, 1, 6, 1, 6])
+        col1.markdown('### Processes text')
+        review_p = process_review(review)
+        col1.markdown(review_p)
+
+        ## Emotional Sentiment 
+        col2.markdown('### Emotions')
+        col2.table(pd.Series(NRCLex(review).raw_emotion_scores))
+
+        col3.markdown('### Sentiment')
+        blob = TextBlob(review)
+        col3.markdown('**Note:** Positive = 1 & Negative = 0')
+        col3.markdown(f'Polarity : {blob.sentiment.polarity:0.2f}')
+        with col3.beta_expander('Looks like a wrong prediction?'):
+            correct = st.selectbox('Select the correct label',
+                                    ('None', 'Positive', 'Neutral', 'Negative'))
+            if correct != 'None':
+                st.balloons()
+            
 elif tab == 'Aggregated Stats':
     st.markdown('## Aggregated Stats')
     df = load_data()
@@ -111,6 +142,7 @@ elif tab == 'Aggregated Stats':
             s += pd.Series(NRCLex(text).raw_emotion_scores)
         s = s.fillna(0)
     if reviews.any():
+        st.subheader('Emotions')
         st.bar_chart(s.astype(int))
 
 
